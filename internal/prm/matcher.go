@@ -190,3 +190,80 @@ func AllStateLabels() []string {
 	return labels
 }
 
+
+// Prepare all primer variants for matching
+func PrimerVariants(forward, reverse string, mismatches int) (*Matcher, error) {
+	fwd, err := normalizePrimer(forward)
+	if err != nil {
+		return nil, fmt.Errorf("forward primer: %w", err)
+	}
+	rev, err := normalizePrimer(reverse)
+	if err != nil {
+		return nil, fmt.Errorf("reverse primer: %w", err)
+	}
+	if mismatches > len(fwd) {
+		return nil, fmt.Errorf("forward primer length %d is shorter than mismatches %d", len(fwd), mismatches)
+	}
+	if mismatches > len(rev) {
+		return nil, fmt.Errorf("reverse primer length %d is shorter than mismatches %d", len(rev), mismatches)
+	}
+
+	fwdRC, err := reverseComplement(fwd)
+	if err != nil {
+		return nil, fmt.Errorf("forward primer reverse complement: %w", err)
+	}
+	revRC, err := reverseComplement(rev)
+	if err != nil {
+		return nil, fmt.Errorf("reverse primer reverse complement: %w", err)
+	}
+
+	orientationSeqs := []struct {
+		name string
+		bit  uint8
+		seq  []byte
+	}{
+		{name: "FWD", bit: bitFwd, seq: fwd},
+		{name: "FWD_RC", bit: bitFwdRC, seq: fwdRC},
+		{name: "REV", bit: bitRev, seq: rev},
+		{name: "REV_RC", bit: bitRevRC, seq: revRC},
+	}
+
+	merged := make(map[string]uint8, 16)
+	variantCounts := make(map[string]int, len(orientationSeqs))
+	for _, item := range orientationSeqs {
+		variants, err := expandVariants(item.seq, maxExpandedVariants)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", item.name, err)
+		}
+		variantCounts[item.name] = len(variants)
+		for _, v := range variants {
+			key := string(v)
+			merged[key] |= item.bit
+		}
+	}
+
+	patterns := make([]string, 0, len(merged))
+	for pattern := range merged {
+		patterns = append(patterns, pattern)
+	}
+	sort.Strings(patterns)
+
+	variants := make([]variant, 0, len(patterns))
+	for _, pattern := range patterns {
+		variants = append(variants, variant{
+			pattern: []byte(pattern),
+			bits:    merged[pattern],
+		})
+	}
+
+	return &Matcher{
+		Forward:          string(fwd),
+		ForwardRC:        string(fwdRC),
+		Reverse:          string(rev),
+		ReverseRC:        string(revRC),
+		Mismatches:       mismatches,
+		VariantCounts:    variantCounts,
+		ConcreteVariants: len(variants),
+		variants:         variants,
+	}, nil
+}
