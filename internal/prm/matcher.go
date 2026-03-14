@@ -27,3 +27,18 @@ var dnaExpansion = map[byte]string{
 	'D': "AGT",
 	'N': "ACGT",
 }
+
+// Convert DNA sequence to uppercase and change U to T
+func normalizeDNA(seq []byte) {
+	for i, b := range seq {
+		switch {
+		case b >= 'a' && b <= 'z':
+			b -= 'a' - 'A'
+		}
+		if b == 'U' {
+			b = 'T'
+		}
+		seq[i] = b
+	}
+}
+
