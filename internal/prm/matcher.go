@@ -15,6 +15,7 @@ const (
 	bitRev   uint8 = 1 << 1
 	bitRevRC uint8 = 1 << 0
 
+	maxExpandedVariants = 4096
 )
 
 var orientationBits = []struct {
@@ -85,5 +86,37 @@ func reverseComplement(src []byte) ([]byte, error) {
 	out := append([]byte(nil), s.RevCom().Seq...)
 	normalizeDNA(out)
 	return out, nil
+}
+
+func expandVariants(primer []byte, limit int) ([][]byte, error) {
+	variants := [][]byte{{}}
+	for _, base := range primer {
+		letters, ok := dnaExpansion[base]
+		if !ok {
+			return nil, fmt.Errorf("unsupported base %q", base)
+		}
+
+		next := make([][]byte, 0, len(variants)*len(letters))
+		seen := make(map[string]struct{}, len(variants)*len(letters))
+		for _, prefix := range variants {
+			for i := 0; i < len(letters); i++ {
+				item := append(append([]byte(nil), prefix...), letters[i])
+				key := string(item)
+				if _, exists := seen[key]; exists {
+					continue
+				}
+				seen[key] = struct{}{}
+				next = append(next, item)
+				if len(next) > limit {
+					return nil, fmt.Errorf("expanded to more than %d concrete variants", limit)
+				}
+			}
+		}
+		variants = next
+	}
+	sort.Slice(variants, func(i, j int) bool {
+		return bytes.Compare(variants[i], variants[j]) < 0
+	})
+	return variants, nil
 }
 
