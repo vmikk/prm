@@ -42,3 +42,17 @@ func normalizeDNA(seq []byte) {
 	}
 }
 
+
+func normalizePrimer(value string) ([]byte, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, fmt.Errorf("blank primer is not allowed")
+	}
+	b := []byte(value)
+	normalizeDNA(b)
+	if err := seq.DNAredundant.IsValid(b); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
