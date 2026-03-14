@@ -141,6 +141,10 @@ func (m *Matcher) Match(seq []byte) uint8 {
 	normalizeDNA(seq)
 	var state uint8
 	for _, pattern := range m.variants {
+		// Skip variants for orientations already found
+		if state&pattern.bits == pattern.bits {
+			continue
+		}
 		if m.Mismatches == 0 {
 			if bytes.Index(seq, pattern.pattern) >= 0 {
 				state |= pattern.bits
@@ -148,6 +152,7 @@ func (m *Matcher) Match(seq []byte) uint8 {
 		} else if containsWithMismatches(seq, pattern.pattern, m.Mismatches) {
 			state |= pattern.bits
 		}
+		// 0x0F = all 4 orientation bits set (FWD|FWD_RC|REV|REV_RC)
 		if state == 0x0F {
 			break
 		}
