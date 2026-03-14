@@ -26,6 +26,8 @@ var dnaExpansion = map[byte]string{
 	'V': "ACG",
 	'D': "AGT",
 	'N': "ACGT",
+	'I': "ACGT",
+}
 }
 
 // Convert DNA sequence to uppercase and change U to T
