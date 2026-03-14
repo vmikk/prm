@@ -9,6 +9,24 @@ import (
 	"github.com/shenwei356/bio/seq"
 )
 
+const (
+	bitFwd   uint8 = 1 << 3
+	bitFwdRC uint8 = 1 << 2
+	bitRev   uint8 = 1 << 1
+	bitRevRC uint8 = 1 << 0
+
+)
+
+var orientationBits = []struct {
+	Name string
+	Bit  uint8
+}{
+	{Name: "FWD", Bit: bitFwd},
+	{Name: "FWD_RC", Bit: bitFwdRC},
+	{Name: "REV", Bit: bitRev},
+	{Name: "REV_RC", Bit: bitRevRC},
+}
+
 var dnaExpansion = map[byte]string{
 	'A': "A",
 	'C': "C",
