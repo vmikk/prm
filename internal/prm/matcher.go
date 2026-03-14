@@ -9,11 +9,14 @@ import (
 	"github.com/shenwei356/bio/seq"
 )
 
+// Orientation bits represent which primer variant matched
+// A match state is a uint8 combining these bits: FWD|FWD_RC|REV|REV_RC
+// Example: state 0b1010 (s1010) means FWD and REV primers were found
 const (
-	bitFwd   uint8 = 1 << 3
-	bitFwdRC uint8 = 1 << 2
-	bitRev   uint8 = 1 << 1
-	bitRevRC uint8 = 1 << 0
+	bitFwd   uint8 = 1 << 3 // forward primer (original)
+	bitFwdRC uint8 = 1 << 2 // forward primer reverse complement
+	bitRev   uint8 = 1 << 1 // reverse primer (original)
+	bitRevRC uint8 = 1 << 0 // reverse primer reverse complement
 
 	maxExpandedVariants = 4096
 )
@@ -178,6 +181,8 @@ func containsWithMismatches(seq []byte, pattern []byte, mismatches int) bool {
 	return false
 }
 
+// StateLabel formats a match state as sXXXX (e.g., s1000, s0011).
+// Each bit indicates if the corresponding orientation was found in the sequence.
 func StateLabel(state uint8) string {
 	return fmt.Sprintf("s%04b", state)
 }
