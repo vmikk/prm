@@ -56,3 +56,14 @@ func normalizePrimer(value string) ([]byte, error) {
 	return b, nil
 }
 
+func reverseComplement(src []byte) ([]byte, error) {
+	cp := append([]byte(nil), src...)
+	s, err := seq.NewSeq(seq.DNAredundant, cp)
+	if err != nil {
+		return nil, err
+	}
+	out := append([]byte(nil), s.RevCom().Seq...)
+	normalizeDNA(out)
+	return out, nil
+}
+
