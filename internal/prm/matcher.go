@@ -47,6 +47,21 @@ var dnaExpansion = map[byte]string{
 	'N': "ACGT",
 	'I': "ACGT",
 }
+
+type Matcher struct {
+	Forward          string
+	ForwardRC        string
+	Reverse          string
+	ReverseRC        string
+	Mismatches       int
+	VariantCounts    map[string]int
+	ConcreteVariants int
+	variants         []variant
+}
+
+type variant struct {
+	pattern []byte
+	bits    uint8
 }
 
 // Convert DNA sequence to uppercase and change U to T
@@ -62,7 +77,6 @@ func normalizeDNA(seq []byte) {
 		seq[i] = b
 	}
 }
-
 
 func normalizePrimer(value string) ([]byte, error) {
 	value = strings.TrimSpace(value)
@@ -118,5 +132,61 @@ func expandVariants(primer []byte, limit int) ([][]byte, error) {
 		return bytes.Compare(variants[i], variants[j]) < 0
 	})
 	return variants, nil
+}
+
+func (m *Matcher) Match(seq []byte) uint8 {
+	normalizeDNA(seq)
+	var state uint8
+	for _, pattern := range m.variants {
+		if m.Mismatches == 0 {
+			if bytes.Index(seq, pattern.pattern) >= 0 {
+				state |= pattern.bits
+			}
+		} else if containsWithMismatches(seq, pattern.pattern, m.Mismatches) {
+			state |= pattern.bits
+		}
+		if state == 0x0F {
+			break
+		}
+	}
+	return state
+}
+
+func containsWithMismatches(seq []byte, pattern []byte, mismatches int) bool {
+	if len(pattern) == 0 {
+		return true
+	}
+	if len(seq) < len(pattern) {
+		return false
+	}
+	last := len(seq) - len(pattern)
+	for start := 0; start <= last; start++ {
+		mm := 0
+		for i := range pattern {
+			if seq[start+i] == pattern[i] {
+				continue
+			}
+			mm++
+			if mm > mismatches {
+				break
+			}
+		}
+		if mm <= mismatches {
+			return true
+		}
+	}
+	return false
+}
+
+func StateLabel(state uint8) string {
+	return fmt.Sprintf("s%04b", state)
+}
+
+func AllStateLabels() []string {
+	labels := make([]string, 16)
+	for i := range 16 {
+		labels[i] = StateLabel(uint8(i))
+	}
+	return labels
 }
 
