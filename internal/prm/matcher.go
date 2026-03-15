@@ -63,8 +63,8 @@ type Matcher struct {
 }
 
 type variant struct {
-	pattern []byte
-	bits    uint8
+	pattern         []byte
+	orientationBits uint8
 }
 
 // Convert DNA sequence to uppercase and change U to T
@@ -142,15 +142,15 @@ func (m *Matcher) Match(seq []byte) uint8 {
 	var state uint8
 	for _, pattern := range m.variants {
 		// Skip variants for orientations already found
-		if state&pattern.bits == pattern.bits {
+		if state&pattern.orientationBits == pattern.orientationBits {
 			continue
 		}
 		if m.Mismatches == 0 {
 			if bytes.Index(seq, pattern.pattern) >= 0 {
-				state |= pattern.bits
+				state |= pattern.orientationBits
 			}
 		} else if containsWithMismatches(seq, pattern.pattern, m.Mismatches) {
-			state |= pattern.bits
+			state |= pattern.orientationBits
 		}
 		// 0x0F = all 4 orientation bits set (FWD|FWD_RC|REV|REV_RC)
 		if state == 0x0F {
@@ -169,17 +169,17 @@ func containsWithMismatches(seq []byte, pattern []byte, mismatches int) bool {
 	}
 	last := len(seq) - len(pattern)
 	for start := 0; start <= last; start++ {
-		mm := 0
+		mismatchCount := 0
 		for i := range pattern {
 			if seq[start+i] == pattern[i] {
 				continue
 			}
-			mm++
-			if mm > mismatches {
+			mismatchCount++
+			if mismatchCount > mismatches {
 				break
 			}
 		}
-		if mm <= mismatches {
+		if mismatchCount <= mismatches {
 			return true
 		}
 	}
@@ -201,8 +201,9 @@ func AllStateLabels() []string {
 }
 
 
-// Prepare all primer variants for matching
-func PrimerVariants(forward, reverse string, mismatches int) (*Matcher, error) {
+// NewMatcher creates a Matcher with all primer variants expanded for matching.
+// It normalizes primers, computes reverse complements, and expands IUPAC codes.
+func NewMatcher(forward, reverse string, mismatches int) (*Matcher, error) {
 	fwd, err := normalizePrimer(forward)
 	if err != nil {
 		return nil, fmt.Errorf("forward primer: %w", err)
@@ -261,8 +262,8 @@ func PrimerVariants(forward, reverse string, mismatches int) (*Matcher, error) {
 	variants := make([]variant, 0, len(patterns))
 	for _, pattern := range patterns {
 		variants = append(variants, variant{
-			pattern: []byte(pattern),
-			bits:    merged[pattern],
+			pattern:         []byte(pattern),
+			orientationBits: merged[pattern],
 		})
 	}
 
