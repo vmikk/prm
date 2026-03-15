@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"prm/internal/prm"
+	"prm/src"
 
 	"github.com/spf13/cobra"
 )
