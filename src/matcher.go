@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-
-	"github.com/shenwei356/bio/seq"
 )
 
 // Orientation bits represent which primer variant matched
@@ -18,7 +16,7 @@ const (
 	bitRev   uint8 = 1 << 1 // reverse primer (original)
 	bitRevRC uint8 = 1 << 0 // reverse primer reverse complement
 
-	maxExpandedVariants = 4096
+	maxExpandedVariants = 16384
 )
 
 var orientationBits = []struct {
@@ -49,6 +47,25 @@ var dnaExpansion = map[byte]string{
 	'D': "AGT",
 	'N': "ACGT",
 	'I': "ACGT",
+}
+
+var dnaComplement = map[byte]byte{
+	'A': 'T',
+	'C': 'G',
+	'G': 'C',
+	'T': 'A',
+	'R': 'Y',
+	'Y': 'R',
+	'M': 'K',
+	'K': 'M',
+	'S': 'S',
+	'W': 'W',
+	'H': 'D',
+	'B': 'V',
+	'V': 'B',
+	'D': 'H',
+	'N': 'N',
+	'I': 'I',
 }
 
 type Matcher struct {
@@ -89,20 +106,32 @@ func normalizePrimer(value string) ([]byte, error) {
 	}
 	b := []byte(value)
 	normalizeDNA(b)
-	if err := seq.DNAredundant.IsValid(b); err != nil {
+	if err := validatePrimerBases(b); err != nil {
 		return nil, err
 	}
 	return b, nil
 }
 
-func reverseComplement(src []byte) ([]byte, error) {
-	cp := append([]byte(nil), src...)
-	s, err := seq.NewSeq(seq.DNAredundant, cp)
-	if err != nil {
-		return nil, err
+func validatePrimerBases(seq []byte) error {
+	for i, base := range seq {
+		if _, ok := dnaExpansion[base]; ok {
+			continue
+		}
+		return fmt.Errorf("unsupported primer base %q at position %d", base, i+1)
 	}
-	out := append([]byte(nil), s.RevCom().Seq...)
-	normalizeDNA(out)
+	return nil
+}
+
+func reverseComplement(src []byte) ([]byte, error) {
+	out := make([]byte, len(src))
+	for i := range src {
+		base := src[len(src)-1-i]
+		comp, ok := dnaComplement[base]
+		if !ok {
+			return nil, fmt.Errorf("unsupported primer base %q", base)
+		}
+		out[i] = comp
+	}
 	return out, nil
 }
 
