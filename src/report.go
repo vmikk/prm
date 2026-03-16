@@ -195,30 +195,50 @@ func renderMatchTable(rows []orientationRow, palette reportPalette) []string {
 	}
 
 	rendered := make([]string, 0, len(rows)+2)
-	rendered = append(rendered, palette.section("primer matches"))
-	rendered = append(rendered,
-		fmt.Sprintf(
-			"%-*s  %*s  %*s  %*s  %*s",
-			widths[0], palette.header(headers[0]),
-			widths[1], palette.header(headers[1]),
-			widths[2], palette.header(headers[2]),
-			widths[3], palette.header(headers[3]),
-			widths[4], palette.header(headers[4]),
-		),
-	)
+	rendered = append(rendered, palette.section("      primer matches"))
+	rendered = append(rendered, formatMatchTableLine(
+		widths,
+		[5]string{headers[0], headers[1], headers[2], headers[3], headers[4]},
+		[5]func(string) string{
+			palette.header,
+			palette.header,
+			palette.header,
+			palette.header,
+			palette.header,
+		},
+	))
 	for _, row := range rows {
-		rendered = append(rendered,
-			fmt.Sprintf(
-				"%-*s  %*s  %*s  %*s  %*s",
-				widths[0], palette.label(row.Label),
-				widths[1], palette.count(strconv.FormatUint(row.Values[0], 10), row.Values[0]),
-				widths[2], palette.count(strconv.FormatUint(row.Values[1], 10), row.Values[1]),
-				widths[3], palette.count(strconv.FormatUint(row.Values[2], 10), row.Values[2]),
-				widths[4], palette.count(strconv.FormatUint(row.Values[3], 10), row.Values[3]),
-			),
-		)
+		values := [5]string{
+			row.Label,
+			strconv.FormatUint(row.Values[0], 10),
+			strconv.FormatUint(row.Values[1], 10),
+			strconv.FormatUint(row.Values[2], 10),
+			strconv.FormatUint(row.Values[3], 10),
+		}
+		rendered = append(rendered, formatMatchTableLine(
+			widths,
+			values,
+			[5]func(string) string{
+				palette.label,
+				func(text string) string { return palette.count(text, row.Values[0]) },
+				func(text string) string { return palette.count(text, row.Values[1]) },
+				func(text string) string { return palette.count(text, row.Values[2]) },
+				func(text string) string { return palette.count(text, row.Values[3]) },
+			},
+		))
 	}
 	return rendered
+}
+
+func formatMatchTableLine(widths []int, values [5]string, stylers [5]func(string) string) string {
+	cells := [5]string{
+		stylers[0](fmt.Sprintf("%-*s", widths[0], values[0])),
+		stylers[1](fmt.Sprintf("%*s", widths[1], values[1])),
+		stylers[2](fmt.Sprintf("%*s", widths[2], values[2])),
+		stylers[3](fmt.Sprintf("%*s", widths[3], values[3])),
+		stylers[4](fmt.Sprintf("%*s", widths[4], values[4])),
+	}
+	return strings.Join(cells[:], "  ")
 }
 
 func shouldShowVariants(summary Summary) bool {
