@@ -57,6 +57,7 @@ type Matcher struct {
 	Reverse          string
 	ReverseRC        string
 	Mismatches       int
+	HasIUPAC         bool
 	VariantCounts    map[string]int
 	ConcreteVariants int
 	variants         []variant
@@ -103,6 +104,18 @@ func reverseComplement(src []byte) ([]byte, error) {
 	out := append([]byte(nil), s.RevCom().Seq...)
 	normalizeDNA(out)
 	return out, nil
+}
+
+func hasAmbiguousBases(seq []byte) bool {
+	for _, base := range seq {
+		switch base {
+		case 'A', 'C', 'G', 'T':
+			continue
+		default:
+			return true
+		}
+	}
+	return false
 }
 
 func expandVariants(primer []byte, limit int) ([][]byte, error) {
@@ -200,7 +213,6 @@ func AllStateLabels() []string {
 	return labels
 }
 
-
 // NewMatcher creates a Matcher with all primer variants expanded for matching.
 // It normalizes primers, computes reverse complements, and expands IUPAC codes.
 func NewMatcher(forward, reverse string, mismatches int) (*Matcher, error) {
@@ -273,6 +285,7 @@ func NewMatcher(forward, reverse string, mismatches int) (*Matcher, error) {
 		Reverse:          string(rev),
 		ReverseRC:        string(revRC),
 		Mismatches:       mismatches,
+		HasIUPAC:         hasAmbiguousBases(fwd) || hasAmbiguousBases(rev),
 		VariantCounts:    variantCounts,
 		ConcreteVariants: len(variants),
 		variants:         variants,
