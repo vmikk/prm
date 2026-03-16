@@ -147,12 +147,13 @@ func summaryLines(summary Summary, palette reportPalette) []summaryLine {
 		summaryLine{Label: "mismatches", Value: palette.value(strconv.Itoa(summary.Config.Mismatches))},
 	)
 	if shouldShowVariants(summary) {
+		fwdVariants := summary.VariantCounts["FWD"]
+		revVariants := summary.VariantCounts["REV"]
 		lines = append(lines,
-			summaryLine{Label: "primer_variants", Value: palette.value(strconv.Itoa(summary.ConcreteVariants))},
-			summaryLine{Label: "fwd_variants", Value: palette.value(strconv.Itoa(summary.VariantCounts["FWD"]))},
-			summaryLine{Label: "fwd_rc_variants", Value: palette.value(strconv.Itoa(summary.VariantCounts["FWD_RC"]))},
-			summaryLine{Label: "rev_variants", Value: palette.value(strconv.Itoa(summary.VariantCounts["REV"]))},
-			summaryLine{Label: "rev_rc_variants", Value: palette.value(strconv.Itoa(summary.VariantCounts["REV_RC"]))},
+			summaryLine{
+				Label: "primer variants (fwd + rev)",
+				Value: palette.value(fmt.Sprintf("%d = (%d + %d) * 2", summary.ConcreteVariants, fwdVariants, revVariants)),
+			},
 		)
 	}
 	return lines
