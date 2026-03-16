@@ -20,6 +20,7 @@ type Summary struct {
 	ForwardRC        string
 	Reverse          string
 	ReverseRC        string
+	HasIUPAC         bool
 	VariantCounts    map[string]int
 	ConcreteVariants int
 	Read1Counts      [16]uint64
@@ -56,6 +57,7 @@ func Run(ctx context.Context, cfg Config) (Summary, error) {
 		ForwardRC:        matcher.ForwardRC,
 		Reverse:          matcher.Reverse,
 		ReverseRC:        matcher.ReverseRC,
+		HasIUPAC:         matcher.HasIUPAC,
 		VariantCounts:    matcher.VariantCounts,
 		ConcreteVariants: matcher.ConcreteVariants,
 	}
