@@ -46,7 +46,7 @@ func rootCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&cfg.Input2, "input2", "I", "", "optional second FASTA/FASTQ file for paired-end reads")
 	cmd.Flags().IntVarP(&cfg.Mismatches, "mismatches", "m", 0, "allowed substitution mismatches")
 	cmd.Flags().IntVarP(&cfg.Head, "head", "n", 0, "number of records to process (or read pairs in paired mode, 0 for all)")
-	cmd.Flags().IntVarP(&cfg.Threads, "threads", "j", runtime.NumCPU(), "number of worker threads")
+	cmd.Flags().IntVarP(&cfg.Threads, "threads", "j", defaultThreads(), "number of worker threads")
 	cmd.Flags().StringVarP(&cfg.OutTSV, "out-tsv", "o", "", `optional TSV output path (suffix ".gz" writes gzipped output)`)
 
 	_ = cmd.MarkFlagRequired("forward")
@@ -54,6 +54,13 @@ func rootCommand() *cobra.Command {
 	_ = cmd.MarkFlagRequired("input")
 
 	return cmd
+}
+
+func defaultThreads() int {
+	if runtime.NumCPU() < 8 {
+		return runtime.NumCPU()
+	}
+	return 8
 }
 
 func validateConfig(cfg prm.Config) error {
