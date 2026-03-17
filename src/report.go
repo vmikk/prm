@@ -146,7 +146,7 @@ func summaryLines(summary Summary, palette reportPalette) []summaryLine {
 		lines = append(lines, summaryLine{Label: "input2", Value: palette.value(summary.Config.Input2)})
 	}
 	lines = append(lines,
-		summaryLine{Label: "forward / rc ", Value: palette.primerPair(summary.Forward, summary.ForwardRC)},
+		summaryLine{Label: "forward / rc", Value: palette.primerPair(summary.Forward, summary.ForwardRC)},
 		summaryLine{Label: "reverse / rc", Value: palette.primerPair(summary.Reverse, summary.ReverseRC)},
 		summaryLine{Label: "mismatches", Value: palette.value(strconv.Itoa(summary.Config.Mismatches))},
 	)
