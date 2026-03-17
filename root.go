@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"runtime"
 
 	"prm/src"
@@ -23,7 +25,16 @@ func rootCommand() *cobra.Command {
 			if err := validateConfig(cfg); err != nil {
 				return err
 			}
-			summary, err := prm.Run(cmd.Context(), cfg)
+			spinner := newCommandSpinner(cmd.ErrOrStderr(), cfg)
+			opts := prm.RunOptions{}
+			if spinner != nil {
+				spinner.Start()
+				opts.Progress = spinner.Update
+			}
+			summary, err := prm.RunWithOptions(cmd.Context(), cfg, opts)
+			if spinner != nil {
+				spinner.Stop(err == nil)
+			}
 			if err != nil {
 				return err
 			}
@@ -91,4 +102,28 @@ func validateConfig(cfg prm.Config) error {
 		}
 	}
 	return nil
+}
+
+func newCommandSpinner(w io.Writer, cfg prm.Config) *prm.ProgressSpinner {
+	if !isTerminalWriter(w) {
+		return nil
+	}
+	unit := "reads"
+	if cfg.Input2 != "" {
+		unit = "read pairs"
+	}
+	return prm.NewProgressSpinner(w, unit)
+}
+
+func isTerminalWriter(w io.Writer) bool {
+	file, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return false
+	}
+	term := os.Getenv("TERM")
+	return info.Mode()&os.ModeCharDevice != 0 && term != "" && term != "dumb"
 }
