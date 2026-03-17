@@ -31,6 +31,14 @@ type Summary struct {
 	PairTotal        uint64
 }
 
+type ProgressUpdate struct {
+	Processed uint64
+}
+
+type RunOptions struct {
+	Progress func(ProgressUpdate)
+}
+
 type partialCounts struct {
 	read1 [16]uint64
 	read2 [16]uint64
@@ -43,6 +51,10 @@ type recordBatch struct {
 }
 
 func Run(ctx context.Context, cfg Config) (Summary, error) {
+	return RunWithOptions(ctx, cfg, RunOptions{})
+}
+
+func RunWithOptions(ctx context.Context, cfg Config, opts RunOptions) (Summary, error) {
 	runtime.GOMAXPROCS(cfg.Threads)
 
 	matcher, err := NewMatcher(cfg.Forward, cfg.Reverse, cfg.Mismatches)
@@ -62,7 +74,7 @@ func Run(ctx context.Context, cfg Config) (Summary, error) {
 		ConcreteVariants: matcher.ConcreteVariants,
 	}
 
-	parts, err := runPipeline(ctx, cfg, matcher)
+	parts, err := runPipeline(ctx, cfg, matcher, opts)
 	if err != nil {
 		return Summary{}, err
 	}
@@ -78,7 +90,7 @@ func Run(ctx context.Context, cfg Config) (Summary, error) {
 	return summary, nil
 }
 
-func runPipeline(ctx context.Context, cfg Config, matcher *Matcher) ([]partialCounts, error) {
+func runPipeline(ctx context.Context, cfg Config, matcher *Matcher, opts RunOptions) ([]partialCounts, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -89,9 +101,9 @@ func runPipeline(ctx context.Context, cfg Config, matcher *Matcher) ([]partialCo
 	go func() {
 		var err error
 		if cfg.Input2 == "" {
-			err = produceSingle(ctx, cfg, jobs)
+			err = produceSingle(ctx, cfg, jobs, opts)
 		} else {
-			err = producePaired(ctx, cfg, jobs)
+			err = producePaired(ctx, cfg, jobs, opts)
 		}
 		producerErr <- err
 		close(jobs)
@@ -145,19 +157,19 @@ func runPipeline(ctx context.Context, cfg Config, matcher *Matcher) ([]partialCo
 	return parts, nil
 }
 
-func produceSingle(ctx context.Context, cfg Config, jobs chan<- recordBatch) error {
+func produceSingle(ctx context.Context, cfg Config, jobs chan<- recordBatch, opts RunOptions) error {
 	reader, err := fastx.NewReader(nil, cfg.Input1, "")
 	if err != nil {
 		return err
 	}
 	defer reader.Close()
 
-	var processed int
+	var processed uint64
 	batch := recordBatch{read1: make([][]byte, 0, batchSize)}
 	checkedAlphabet := false
 
 	for {
-		if cfg.Head > 0 && processed >= cfg.Head {
+		if cfg.Head > 0 && processed >= uint64(cfg.Head) {
 			break
 		}
 		record, err := reader.Read()
@@ -179,6 +191,7 @@ func produceSingle(ctx context.Context, cfg Config, jobs chan<- recordBatch) err
 			if err := sendBatch(ctx, jobs, batch); err != nil {
 				return err
 			}
+			emitProgress(opts, processed)
 			batch = recordBatch{read1: make([][]byte, 0, batchSize)}
 		}
 	}
@@ -186,11 +199,12 @@ func produceSingle(ctx context.Context, cfg Config, jobs chan<- recordBatch) err
 		if err := sendBatch(ctx, jobs, batch); err != nil {
 			return err
 		}
+		emitProgress(opts, processed)
 	}
 	return nil
 }
 
-func producePaired(ctx context.Context, cfg Config, jobs chan<- recordBatch) error {
+func producePaired(ctx context.Context, cfg Config, jobs chan<- recordBatch, opts RunOptions) error {
 	reader1, err := fastx.NewReader(nil, cfg.Input1, "")
 	if err != nil {
 		return err
@@ -203,7 +217,7 @@ func producePaired(ctx context.Context, cfg Config, jobs chan<- recordBatch) err
 	}
 	defer reader2.Close()
 
-	var processed int
+	var processed uint64
 	batch := recordBatch{
 		read1: make([][]byte, 0, batchSize),
 		read2: make([][]byte, 0, batchSize),
@@ -212,7 +226,7 @@ func producePaired(ctx context.Context, cfg Config, jobs chan<- recordBatch) err
 	checkedAlpha2 := false
 
 	for {
-		if cfg.Head > 0 && processed >= cfg.Head {
+		if cfg.Head > 0 && processed >= uint64(cfg.Head) {
 			break
 		}
 
@@ -252,6 +266,7 @@ func producePaired(ctx context.Context, cfg Config, jobs chan<- recordBatch) err
 			if err := sendBatch(ctx, jobs, batch); err != nil {
 				return err
 			}
+			emitProgress(opts, processed)
 			batch = recordBatch{
 				read1: make([][]byte, 0, batchSize),
 				read2: make([][]byte, 0, batchSize),
@@ -263,8 +278,16 @@ func producePaired(ctx context.Context, cfg Config, jobs chan<- recordBatch) err
 		if err := sendBatch(ctx, jobs, batch); err != nil {
 			return err
 		}
+		emitProgress(opts, processed)
 	}
 	return nil
+}
+
+func emitProgress(opts RunOptions, processed uint64) {
+	if opts.Progress == nil {
+		return
+	}
+	opts.Progress(ProgressUpdate{Processed: processed})
 }
 
 func sendBatch(ctx context.Context, jobs chan<- recordBatch, batch recordBatch) error {
